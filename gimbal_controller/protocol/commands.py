@@ -25,7 +25,7 @@ def enable_motor(motor_id: int) -> bytes:
 def disable_motor(motor_id: int) -> bytes:
     """失能电机 (功能码05, 固定校验)"""
     if motor_id == 1:
-        return bytes([0x7A, 0x01, 0x05, 0x7C, 0x7B])
+        return bytes([0x7A, 0x01, 0x05, 0x7E, 0x7B])
     return bytes([0x7A, 0x02, 0x05, 0x7D, 0x7B])
 
 

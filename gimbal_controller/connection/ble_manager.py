@@ -106,20 +106,34 @@ class BLEManager:
                         notify_chars.append(char.uuid)
                 self._discovered_services.append(svc_info)
 
-            # 自动选择: 优先NUS, 否则最后一个可写特征(自定义透传服务通常排在最后)
-            if NUS_WRITE_UUID in write_chars:
-                self._write_uuid = NUS_WRITE_UUID
-            elif write_chars:
-                self._write_uuid = write_chars[-1]
-            else:
-                self._write_uuid = None
+            # 自动选择特征: 优先找同时支持 write+notify 的特征(透传服务通常如此)
+            # 否则分别选最后一个可写的和最后一个可通知的
+            dual_chars = []  # 同时支持 write+notify 的特征
+            for svc in self._client.services:
+                for char in svc.characteristics:
+                    props = set(char.properties)
+                    if ({"write", "write-without-response"} & props) and ({"notify"} & props):
+                        dual_chars.append(char.uuid)
 
-            if NUS_NOTIFY_UUID in notify_chars:
-                self._notify_uuid = NUS_NOTIFY_UUID
-            elif notify_chars:
-                self._notify_uuid = notify_chars[0]
+            if dual_chars:
+                # 选最后一个双功能特征(透传服务通常排在最后)
+                self._write_uuid = dual_chars[-1]
+                self._notify_uuid = dual_chars[-1]
             else:
-                self._notify_uuid = None
+                # 分别选取
+                if NUS_WRITE_UUID in write_chars:
+                    self._write_uuid = NUS_WRITE_UUID
+                elif write_chars:
+                    self._write_uuid = write_chars[-1]
+                else:
+                    self._write_uuid = None
+
+                if NUS_NOTIFY_UUID in notify_chars:
+                    self._notify_uuid = NUS_NOTIFY_UUID
+                elif notify_chars:
+                    self._notify_uuid = notify_chars[-1]
+                else:
+                    self._notify_uuid = None
 
             # 订阅通知
             if self._notify_uuid:
@@ -132,7 +146,10 @@ class BLEManager:
 
             print(f"BLE连接成功: {address}")
             print(f"  可写特征: {write_chars}")
+            print(f"  可通知特征: {notify_chars}")
+            print(f"  双功能特征: {dual_chars}")
             print(f"  选定写特征: {self._write_uuid}")
+            print(f"  选定通知特征: {self._notify_uuid}")
             return True
         except Exception as e:
             print(f"BLE连接失败: {e}")
